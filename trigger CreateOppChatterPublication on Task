@@ -1,0 +1,36 @@
+trigger CreateOppChatterPublication on Task (after insert, after update) {
+      
+    Set<String> oppIdList = new Set<String>();
+    Set<Task> taskToPost = new Set<Task>();
+    for (Task taskItem : (List<Task>) Trigger.new){
+        if (String.valueOf(taskItem.WhatId).startsWith('a0J') && taskItem.MencionarUsuarioMulti__c != null){
+            oppIdList.add(taskItem.whatId);
+            taskToPost.add(taskItem);
+        }
+    }
+  
+    if (oppIdList.size() > 0){
+        // Substitiuir na linha abaixo SELECT ID, CampoRelacionamentoComAccount FROM NomedeApiOportunidadeProtheus where id =: oppIdList
+        List<Oportunidade_Proteus__c> oppList = [select id, Cliente_da_Oportunidade__c from Oportunidade_Proteus__c where id =: oppIdList];
+        Map<String, String> oppidAccIdMap = new Map<String, String>();
+        for (Oportunidade_Proteus__c opp: oppList){
+            oppidAccIdMap.put(opp.id, opp.Cliente_da_Oportunidade__c);
+        }
+      
+        for (Task taskItem : taskToPost){
+            List<String> valoresId = taskItem.MencionarUsuarioMulti__c.split(';');
+            // <fulanos>: bla bla bla
+            String mensagem = '';
+            for (String userId : valoresId){
+                mensagem +='{' + userId + '} ';
+            }
+          
+            String accId = oppIdAccidMap.get(taskItem.WhatId);
+          
+            mensagem += 'Link para a tarefa:https://promon--sandboxti.my.salesforce.com/'+taskItem.Id;
+            ConnectApi.FeedItem fi = (ConnectApi.FeedItem) ConnectApiHelper.postFeedItemWithMentions(Network.getNetworkId(),taskItem.WhatId, mensagem);
+            ConnectApi.FeedItem fi2 = (ConnectApi.FeedItem) ConnectApiHelper.postFeedItemWithMentions(Network.getNetworkId(),accId, mensagem);
+        }
+    }
+  
+}
